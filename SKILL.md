@@ -1,26 +1,21 @@
-# Skills 使用指南
-
-本项目提供以下 MCP 工具技能，用于操作阿里云日志服务 (SLS)。
-
-## 技能列表
-
-### aliyun-sls-logs
-
-**触发场景：** 用户需要查日志、排查错误、追踪请求链路、查看服务运行状态时使用。
-
-**包含工具：**
-
-| 工具 | 说明 |
-|------|------|
-| `sls_query_logs` | 查询日志（支持关键字和 SQL 两种模式） |
-| `sls_tail_logs` | 获取最近 N 条日志（快速查看当前状态） |
-| `sls_list_projects` | 列出 SLS 项目（支持模糊搜索） |
-| `sls_list_logstores` | 列出 logstore（支持模糊搜索） |
-| `sls_get_credentials` | 验证当前凭证配置 |
-
+---
+name: aliyun-sls-logs
+description: 查询阿里云 SLS 日志，排查错误、追踪请求、查看服务状态。当用户要求查日志、找报错、追踪链路时使用。
 ---
 
-## 日志查询决策流程（核心）
+# Aliyun SLS 日志查询
+
+## 可用工具
+
+| 工具 | 说明 | 使用场景 |
+|------|------|----------|
+| `sls_query_logs` | 查询日志（关键字 / SQL） | 搜索错误、关键字、traceId |
+| `sls_tail_logs` | 获取最近 N 条日志 | 快速查看当前状态 |
+| `sls_list_projects` | 列出 SLS 项目（模糊搜索） | 定位服务所属项目 |
+| `sls_list_logstores` | 列出 logstore（模糊搜索） | 定位服务的日志存储 |
+| `sls_get_credentials` | 显示当前凭证配置（脱敏） | 验证配置是否正确 |
+
+## 日志查询决策流程
 
 当用户要求查日志时，按以下三步操作：
 
@@ -46,14 +41,12 @@
 sls_list_logstores(project="<Step1的project>", filter="<服务关键词>")
 ```
 
-从结果中匹配最相关的 logStore。命名规则参考：
-- 测试环境：`test-{团队}-{服务名}`，如 `test-sail-ep-backend`
-- 开发环境：`dev-{团队}-{服务名}`，如 `dev-onepieceplus-thor`
+命名规则参考：
+- 测试环境：`test-{团队}-{服务名}`
+- 开发环境：`dev-{团队}-{服务名}`
 - 生产环境：`{团队}-{服务名}` 或类似格式
 
 ### Step 3: 执行查询
-
-根据用户意图选择查询方式：
 
 | 用户意图 | 操作 |
 |---------|------|
@@ -73,76 +66,53 @@ Step 2: sls_list_logstores(project="<测试环境project>", filter="ep-backend")
 Step 3: sls_query_logs(project=..., logStore="test-sail-ep-backend", query="level:ERROR", fromMinutesAgo=30)
 ```
 
----
+## 常用查询模式
 
-## 典型使用流程
-
-### 1. 定位服务
-
-不确定日志在哪个 project / logstore 时，先模糊搜索：
-
+### 关键字查询（fast=true，默认）
 ```
-sls_list_projects(filter="关键字")
-sls_list_logstores(project="your-project", filter="服务名")
+sls_query_logs(query="level:ERROR", fromMinutesAgo=15)
+sls_query_logs(query="OutOfMemoryError", fromMinutesAgo=60)
+sls_query_logs(query="userId:12345 AND status:500", fromMinutesAgo=30)
 ```
 
-### 2. 快速查看近况
-
+### SQL 聚合（fast=false）
 ```
-sls_tail_logs(project="your-project", logStore="your-logstore", lastMinutes=5)
-```
-
-### 3. 精确查询
-
-```
-sls_query_logs(query="level:ERROR AND serviceName:order-service", fromMinutesAgo=30)
+sls_query_logs(query="* | select level, count(*) as cnt group by level", fast=false, fromMinutesAgo=60)
+sls_query_logs(query="level:ERROR | select serviceName, count(*) as cnt group by serviceName order by cnt desc limit 10", fast=false)
 ```
 
-### 4. 链路追踪
-
+### 时间范围
 ```
-sls_query_logs(query="traceId:abc123def456", fromMinutesAgo=60)
-```
-
-### 5. 统计分析（SQL 模式）
-
-```
-sls_query_logs(query="* | select level, count(*) as cnt group by level order by cnt desc", fast=false, fromMinutesAgo=60)
+sls_query_logs(query="Exception", fromMinutesAgo=120, toMinutesAgo=60)
 ```
 
----
+### 分页
+```
+sls_query_logs(query="level:ERROR", line=100, offset=0)
+sls_query_logs(query="level:ERROR", line=100, offset=100)
+```
 
-## 查询优化要点
+## 性能要点
 
-| 要点 | 说明 |
-|------|------|
-| 默认用 `fast=true` | 关键字查询走 GetLogs，速度快 |
-| SQL 用 `fast=false` | 仅在需要 `| select ...` 聚合时切换 |
-| 缩小时间范围 | `fromMinutesAgo` 越小越快，避免全量扫描 |
-| 精确字段过滤 | `level:ERROR`、`traceId:xxx` 比 `*` 快得多 |
-| 分页获取 | 单次最多 100 条，用 `offset` 翻页 |
-| 避免大范围 `*` | 24h 全量扫描会非常慢 |
+- 默认用 `fast=true`，仅 SQL 聚合时切 `fast=false`
+- 缩小 `fromMinutesAgo`，避免大范围扫描
+- 用精确字段过滤（`level:ERROR`、`traceId:xxx`）而非 `*`
+- 单次最多 100 条，用 `offset` 翻页
 
----
-
-## 环境配置
-
-### 安装
+## 安装与配置
 
 ```bash
 npm install -g @openpeng/alilog-mcp
 ```
 
-### MCP Server 接入配置
-
-在 Claude Desktop / Kiro / settings.json 中添加：
+MCP 接入配置：
 
 ```json
 {
   "mcpServers": {
-    "aliyun": {
+    "aliyun-log": {
       "command": "npx",
-      "args": ["@openpeng/alilog-mcp"],
+      "args": ["-y", "@openpeng/alilog-mcp"],
       "env": {
         "CRED_SOURCE": "consul",
         "CONSUL_URL": "https://your-consul-url"
@@ -152,65 +122,10 @@ npm install -g @openpeng/alilog-mcp
 }
 ```
 
-### 凭证来源
-
-通过 `CRED_SOURCE` 环境变量切换：
+凭证模式：
 
 | 模式 | 说明 | 适用场景 |
 |------|------|----------|
 | `consul`（默认） | 从 Consul KV 获取 AK/SK | 共享开发环境 |
 | `env` | 从环境变量读取 | CI/CD、本地覆盖 |
 | `static` | 同 env，启动时加载一次 | 固定配置场景 |
-
-#### Consul 模式环境变量
-
-```env
-CRED_SOURCE=consul
-CONSUL_URL=https://your-consul-url
-CONSUL_TOKEN=
-CONSUL_PATH_ENDPOINT=your/path/ALI_SLS_ENDPOINT
-CONSUL_PATH_AK_ID=your/path/ALI_SLS_ACCESS_KEY_ID
-CONSUL_PATH_AK_SECRET=your/path/ALI_SLS_ACCESS_KEY_SECRET
-CONSUL_PATH_PROJECT=your/path/ALI_SLS_PROJECT
-CONSUL_PATH_LOGSTORE=your/path/ALI_SLS_LOGSTORE
-```
-
-#### Env / Static 模式环境变量
-
-```env
-CRED_SOURCE=env
-ALI_SLS_ENDPOINT=cn-hangzhou.log.aliyuncs.com
-ALI_SLS_ACCESS_KEY_ID=your-ak-id
-ALI_SLS_ACCESS_KEY_SECRET=your-ak-secret
-ALI_SLS_PROJECT=your-project
-ALI_SLS_LOGSTORE=your-logstore
-```
-
----
-
-## 故障排查示例
-
-### 某服务报 500 错误
-
-```
-sls_list_logstores(project="your-project", filter="order")
-sls_query_logs(query="status:500 AND serviceName:order-service", project="your-project", logStore="order-logstore", fromMinutesAgo=30)
-```
-
-### OOM 排查
-
-```
-sls_query_logs(query="OutOfMemoryError", fromMinutesAgo=120)
-```
-
-### 慢查询定位
-
-```
-sls_query_logs(query="* | select requestUri, avg(rt) as avg_rt group by requestUri having avg_rt > 3000 order by avg_rt desc limit 20", fast=false, fromMinutesAgo=60)
-```
-
-### 验证凭证是否正常
-
-```
-sls_get_credentials()
-```
