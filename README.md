@@ -1,12 +1,30 @@
-# aliyun-mcp
+# @openpeng/alilog-mcp
 
 Aliyun MCP Server — 提供阿里云日志服务 (SLS) 的 MCP 工具，支持从 Consul 或环境变量加载凭证。
 
 ## 快速开始
 
 ```bash
-npm install
-npm run build
+npm install -g @openpeng/alilog-mcp
+```
+
+## MCP 配置
+
+在 Claude Desktop / Kiro / settings.json 中添加：
+
+```json
+{
+  "mcpServers": {
+    "aliyun": {
+      "command": "npx",
+      "args": ["@openpeng/alilog-mcp"],
+      "env": {
+        "CRED_SOURCE": "consul",
+        "CONSUL_URL": "https://your-consul-url"
+      }
+    }
+  }
+}
 ```
 
 ## 凭证配置
@@ -53,25 +71,6 @@ ALI_SLS_ACCESS_KEY_ID=xxx
 ALI_SLS_ACCESS_KEY_SECRET=xxx
 ALI_SLS_PROJECT=my-project
 ALI_SLS_LOGSTORE=my-logstore
-```
-
-## MCP 配置
-
-在 Claude Desktop / Kiro / settings.json 中添加：
-
-```json
-{
-  "mcpServers": {
-    "aliyun": {
-      "command": "node",
-      "args": ["path/to/aliyun-mcp/dist/index.js"],
-      "env": {
-        "CRED_SOURCE": "consul",
-        "CONSUL_URL": "https://your-consul-url"
-      }
-    }
-  }
-}
 ```
 
 ## 工具列表

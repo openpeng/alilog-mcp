@@ -127,6 +127,12 @@ sls_query_logs(query="* | select level, count(*) as cnt group by level order by 
 
 ## 环境配置
 
+### 安装
+
+```bash
+npm install -g @openpeng/alilog-mcp
+```
+
 ### MCP Server 接入配置
 
 在 Claude Desktop / Kiro / settings.json 中添加：
@@ -135,8 +141,8 @@ sls_query_logs(query="* | select level, count(*) as cnt group by level order by 
 {
   "mcpServers": {
     "aliyun": {
-      "command": "node",
-      "args": ["path/to/aliyun-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["@openpeng/alilog-mcp"],
       "env": {
         "CRED_SOURCE": "consul",
         "CONSUL_URL": "https://your-consul-url"
