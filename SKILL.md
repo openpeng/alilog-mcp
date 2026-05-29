@@ -129,3 +129,76 @@ MCP 接入配置：
 | `consul`（默认） | 从 Consul KV 获取 AK/SK | 共享开发环境 |
 | `env` | 从环境变量读取 | CI/CD、本地覆盖 |
 | `static` | 同 env，启动时加载一次 | 固定配置场景 |
+
+
+## 凭证配置
+
+通过 `CRED_SOURCE` 环境变量选择凭证加载方式：
+
+### Consul 模式（默认）
+
+从 Consul KV 获取 AK/SK，适合共享开发环境。
+
+```env
+CRED_SOURCE=consul
+CONSUL_URL=https://your-consul-url
+CONSUL_TOKEN=                          # 无 token 留空即可
+# 可选：覆盖默认 KV 路径
+CONSUL_PATH_ENDPOINT=your/path/ALI_SLS_ENDPOINT
+CONSUL_PATH_AK_ID=your/path/ALI_SLS_ACCESS_KEY_ID
+CONSUL_PATH_AK_SECRET=your/path/ALI_SLS_ACCESS_KEY_SECRET
+CONSUL_PATH_PROJECT=your/path/ALI_SLS_PROJECT
+CONSUL_PATH_LOGSTORE=your/path/ALI_SLS_LOGSTORE
+```
+
+### Env 模式
+
+直接从环境变量读取，适合 CI/CD 或本地覆盖。
+
+```env
+CRED_SOURCE=env
+ALI_SLS_ENDPOINT=cn-hangzhou.log.aliyuncs.com
+ALI_SLS_ACCESS_KEY_ID=xxx
+ALI_SLS_ACCESS_KEY_SECRET=xxx
+ALI_SLS_PROJECT=my-project
+ALI_SLS_LOGSTORE=my-logstore           # 可选，默认 logstore
+```
+
+### Static 模式
+
+与 env 相同，但凭证仅在启动时加载一次。
+
+```env
+CRED_SOURCE=static
+ALI_SLS_ENDPOINT=cn-hangzhou.log.aliyuncs.com
+ALI_SLS_ACCESS_KEY_ID=xxx
+ALI_SLS_ACCESS_KEY_SECRET=xxx
+ALI_SLS_PROJECT=my-project
+ALI_SLS_LOGSTORE=my-logstore
+```
+## 故障排查示例
+
+### 某服务报 500 错误
+
+```
+sls_list_logstores(project="your-project", filter="order")
+sls_query_logs(query="status:500 AND serviceName:order-service", project="your-project", logStore="order-logstore", fromMinutesAgo=30)
+```
+
+### OOM 排查
+
+```
+sls_query_logs(query="OutOfMemoryError", fromMinutesAgo=120)
+```
+
+### 慢查询定位
+
+```
+sls_query_logs(query="* | select requestUri, avg(rt) as avg_rt group by requestUri having avg_rt > 3000 order by avg_rt desc limit 20", fast=false, fromMinutesAgo=60)
+```
+
+### 验证凭证是否正常
+
+```
+sls_get_credentials()
+```
