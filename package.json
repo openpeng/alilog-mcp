@@ -1,5 +1,5 @@
 {
-  "name": "alilog-mcp",
+  "name": "@openpeng/alilog-mcp",
   "version": "1.0.0",
   "description": "Aliyun SLS (Log Service) MCP Server - query logs via MCP protocol",
   "type": "module",
