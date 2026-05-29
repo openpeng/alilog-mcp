@@ -1,0 +1,7 @@
+src/
+.kiro/
+.gitignore
+tsconfig.json
+*.ts
+.env
+.env.*

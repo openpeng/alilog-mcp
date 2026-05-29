@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tgz
+
+.env
+.env.*
+
+*.log
+
+# 内部映射配置（各团队本地维护）
+.kiro/
+.kiro/skills/
